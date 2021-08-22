@@ -46,6 +46,7 @@ class Patches(layers.Layer):
 
     def forward(self,images):
         batch_size = tf.shape(images)[0]
+        print("shape = "+str(tf.shape(images)))
         patches = tf.image.extract_patches(
             images=images,
             sizes=[1,self.patch_size,self.patch_size,1],
@@ -54,6 +55,7 @@ class Patches(layers.Layer):
             padding = "VALID",
         )
         patch_dims = patches.shape[-1]
+        print("\n\npatches.shape = "+str(patches.shape)+"\n\n")
         patches = tf.reshape(patches, [batch_size,-1,patch_dims])
 
         return patches
@@ -93,11 +95,11 @@ def vit_classifier():
         encoded_patches = layers.Add()([x3,x2])
 
 
-    representation = layers.LayerNormalization(epsilon=1e-6)(encoded_patches)
-    representation = layers.Flatten()(representation)
-    representation = layers.Dropout(0.5)(representation)
+    concat_layer = layers.LayerNormalization(epsilon=1e-6)(encoded_patches)
+    concat_layer = layers.Flatten()(concat_layer)
+    concat_layer = layers.Dropout(0.5)(concat_layer)
 
-    features = multi_layer_perceptron(representation, hidden_units = multi_layer_perceptron, dropout_rate=0.5)
+    features = multi_layer_perceptron(concat_layer, hidden_units = mlp_head_units, dropout_rate=0.5)
     logits = layers.Dense(num_classes)(features)
 
     model = keras.Model(inputs = inputs, outputs = logits)
@@ -105,7 +107,7 @@ def vit_classifier():
 
 
 def run_experiment(model):
-    optimizer = tf_addon.optimizer.AdamW(learning_rate=learning_rate, weight_decay=weight_decay)
+    optimizer = tf_addon.optimizers.AdamW(learning_rate=learning_rate, weight_decay=weight_decay)
 
     model.compile(
         optimizer=optimizer,
@@ -143,4 +145,4 @@ def run_experiment(model):
 
 
 transformer = vit_classifier()
-history = run_experiment(vit_classifier)
+history = run_experiment(transformer)
