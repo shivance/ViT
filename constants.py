@@ -11,3 +11,4 @@ projection_dim = 4
 num_heads = 4
 transformer_units = [projection_dim*2, projection_dim]
 mlp_head_units = [2048,1024]
+transformer_layers = 8

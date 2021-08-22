@@ -35,17 +35,17 @@ data_augmentation.layers[0].adapt(x_train)
 def multi_layer_perceptron(x,hidden_units,dropout_rate):
     for units in hidden_units:
         x = layers.Dense(units,activation=tf.nn.gelu)(x)
-        x - layers.Dropout(dropout_rate)(x)
+        x = layers.Dropout(dropout_rate)(x)
     return x
 
 #patch creation
-class Patches(layers.layer):
+class Patches(layers.Layer):
     def __init__(self, patch_size):
         super(Patches, self).__init__()
         self.patch_size = patch_size
 
     def forward(self,images):
-        batch_size = tf.shape(images[0])
+        batch_size = tf.shape(images)[0]
         patches = tf.image.extract_patches(
             images=images,
             sizes=[1,self.patch_size,self.patch_size,1],
@@ -67,8 +67,8 @@ class PatchEncoder(layers.Layer):
             input_dim=num_patches,output_dim=projection_dim)
 
     def forward(self,patch):
-        positions = tf.range(start=0,limit=self.num_patches,data = 1)
-        encoded = self.projection(patch) + self.position_embedding
+        positions = tf.range(start=0,limit=self.num_patches,delta = 1)
+        encoded = self.projection(patch) + self.position_embedding(positions)
 
         return encoded
 
@@ -89,7 +89,7 @@ def vit_classifier():
 
         x2 = layers.Add()([attention_output,encoded_patches])
         x3 = layers.LayerNormalization(epsilon=1e-6)(x2)
-        x3 = multi_layer_perceptron(x3,hidden_units=transformer_units)
+        x3 = multi_layer_perceptron(x3,hidden_units=transformer_units,dropout_rate=0.1)
         encoded_patches = layers.Add()([x3,x2])
 
 
