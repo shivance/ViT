@@ -1,28 +1,49 @@
 import torch
-import torch.nn.functional as F
-import matplotlib.pyplot as plt
+from torch import nn,einsum
+from einops import rearrange,repeat
+from einops.layers.torch import Rearrange
 
-from torch import nn,Tensor
-from PIL import Image
-from torchvision.transforms import Compose,Resize,ToTensor
-import einops.layers.torch as img_layers
-from torchsummary import summary
+def pair(t):
+    return t if isinstance(t, tuple) else (t,t)
 
-
-patch_size = 16 # 16 patches required
-
-class PatchEmbedding(nn.Module):
-
-    def __init__(self,in_channels:int=3,patch_size:int=16,emb_size:int=768):
-        self.patch_size = patch_size
+class PreNorm(nn.Module):
+    
+    def __init__(self,dim,fn):
         super().__init__()
-        self.projection = nn.Sequential(
-            img_layers.Rearrange('b c (h s1) (w s2) -> b (h w) (s1 s2 c)',
-                s1=patch_size,
-                s2=patch_size),
-            nn.Linear(patch_size*patch_size*in_channels,emb_size) #s1*s2*c
+        self.norm = nn.LayerNorm(dim)
+        self.fn = fn
+
+    def forward(self,x,**kwargs):
+        return self.fn(self.norm(x),**kwargs)
+
+class FFN(nn.Module):
+    def __init__(self,dim,hidden_dim,dropout=0.):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(dim,hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim,dim),
+            nn.Dropout(dropout)
         )
 
-    def forward(self,x:Tensor) -> Tensor:
-        x = self.projection(x)
-        return x
+    def forward(self,x):
+        return self.net(x)
+
+
+class Attention(nn.Module):
+    def __init__(self,dim,heads=8,dim_head=64,dropout=0.):
+        super().__init__()
+        project_out = not(heads==1 and dim_head==dim)
+        self.heads = heads
+        self.scale = dim_head**-0.5
+        self.attend = nn.Softmax(dim=-1)
+        self.to_qkv = nn.Linear(dim,inner_dim*3,bias=False)
+
+        self.to_out = nn.Sequential(
+            nn.Linear(inner_dim,dim),
+            nn.Dropout(dropout)
+        ) if project_out else nn.Identity()
+
+    def forward(self,x):
+        b,n,_,h= *x.shape, self.heads
