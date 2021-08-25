@@ -1,0 +1,4 @@
+data_dir/
+saved_models/
+__pycache__/
+.idea/
