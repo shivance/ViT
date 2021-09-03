@@ -1,3 +1,5 @@
+#source : https://github.com/lucidrains/vit-pytorch
+
 import torch
 from torch import nn,einsum
 from einops import rearrange,repeat
